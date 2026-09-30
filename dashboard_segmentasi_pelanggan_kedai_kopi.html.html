@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Segmentasi Pelanggan Kedai Kopi</title>
+    <!-- Chart.js untuk Grafik Interaktif -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: #f4f6f9;
+            color: #333;
+            padding: 20px;
+        }
+        header {
+            background: #4a2c2a;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .full-width {
+            grid-column: span 2;
+        }
+        h2 {
+            color: #4a2c2a;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 8px;
+        }
+        .form-group {
+            margin-bottom: 12px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background: #6f4e37;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #4a2c2a;
+        }
+        .result-box {
+            margin-top: 15px;
+            padding: 15px;
+            background: #eef7ee;
+            border-left: 5px solid #2e7d32;
+            border-radius: 4px;
+            display: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            font-size: 14px;
+        }
+        th {
+            background-color: #6f4e37;
+            color: white;
+        }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .hemat { background-color: #757575; }
+        .nongkrong { background-color: #0288d1; }
+        .sultan { background-color: #d32f2f; }
+        .table-container {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Dashboard & Simulator Segmentasi Pelanggan</h1>
+        <p>Kedai Kopi Analytics - berbasis 50 Data Pelanggan</p>
+    </header>
+
+    <div class="container">
+        
+        <!-- VISUALISASI GRAFIK -->
+        <div class="card">
+            <h2>Proporsi Segmen Pelanggan</h2>
+            <canvas id="segmentChart"></canvas>
+        </div>
+
+        <!-- SIMULATOR SEGMENTASI -->
+        <div class="card">
+            <h2>Simulator Prediksi Segmen Baru</h2>
+            <div class="form-group">
+                <label for="belanja">Total Belanja (Rp):</label>
+                <input type="number" id="belanja" placeholder="Contoh: 150000">
+            </div>
+            <div class="form-group">
+                <label for="cangkir">Jumlah Cangkir / Item:</label>
+                <input type="number" id="cangkir" placeholder="Contoh: 4">
+            </div>
+            <div class="form-group">
+                <label for="hari">Hari Datang dalam Sebulan:</label>
+                <input type="number" id="hari" placeholder="Contoh: 3">
+            </div>
+            <button onclick="predictCluster()">Analisis Segmen Pelanggan</button>
+
+            <div id="resultBox" class="result-box">
+                <h3 id="resTitle">Hasil Segmen</h3>
+                <p><strong>Rekomendasi Promo:</strong> <span id="resPromo"></span></p>
+            </div>
+        </div>
+
+        <!-- TABEL DATASET 50 PELANGGAN -->
+        <div class="card full-width">
+            <h2>Dataset 50 Pelanggan Kedai Kopi</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Customer ID</th>
+                            <th>Total Belanja (Rp)</th>
+                            <th>Cangkir / Item</th>
+                            <th>Hari Datang / Bulan</th>
+                            <th>Segmen Hasil Clustering</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- Data dimasukkan oleh JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- 1. DATASET 50 PELANGGAN (SIMULASI) ---
+        const customers = [];
+        
+        // Generate 20 Pelanggan Hemat
+        for (let i = 1; i <= 20; i++) {
+            customers.push({
+                id: `CUST_${String(i).padStart(3, '0')}`,
+                belanja: Math.floor(Math.random() * 175000) + 75000,
+                cangkir: Math.floor(Math.random() * 5) + 1,
+                hari: Math.floor(Math.random() * 4) + 1,
+                segmen: "🥉 Pelanggan Hemat",
+                class: "hemat"
+            });
+        }
+        // Generate 20 Anak Nongkrong
+        for (let i = 21; i <= 40; i++) {
+            customers.push({
+                id: `CUST_${String(i).padStart(3, '0')}`,
+                belanja: Math.floor(Math.random() * 550000) + 300000,
+                cangkir: Math.floor(Math.random() * 15) + 6,
+                hari: Math.floor(Math.random() * 8) + 5,
+                segmen: "🍰 Anak Nongkrong",
+                class: "nongkrong"
+            });
+        }
+        // Generate 10 Sultan VIP / Anak Kantor
+        for (let i = 41; i <= 50; i++) {
+            customers.push({
+                id: `CUST_${String(i).padStart(3, '0')}`,
+                belanja: Math.floor(Math.random() * 1550000) + 900000,
+                cangkir: Math.floor(Math.random() * 30) + 21,
+                hari: Math.floor(Math.random() * 13) + 13,
+                segmen: "👑 Sultan VIP / Anak Kantor",
+                class: "sultan"
+            });
+        }
+
+        // --- 2. TAMPILKAN KE TABEL ---
+        const tableBody = document.getElementById('tableBody');
+        customers.forEach(c => {
+            const row = `<tr>
+                <td>${c.id}</td>
+                <td>Rp ${c.belanja.toLocaleString('id-ID')}</td>
+                <td>${c.cangkir}</td>
+                <td>${c.hari} Hari</td>
+                <td><span class="badge ${c.class}">${c.segmen}</span></td>
+            </tr>`;
+            tableBody.innerHTML += row;
+        });
+
+        // --- 3. CHART PROPORSI SEGMEN ---
+        const ctx = document.getElementById('segmentChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Pelanggan Hemat', 'Anak Nongkrong', 'Sultan VIP / Kantor'],
+                datasets: [{
+                    data: [20, 20, 10],
+                    backgroundColor: ['#757575', '#0288d1', '#d32f2f']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        // --- 4. LOGIKA SIMULATOR PREDIKSI ---
+        function predictCluster() {
+            const belanja = parseFloat(document.getElementById('belanja').value);
+            const cangkir = parseInt(document.getElementById('cangkir').value);
+            const hari = parseInt(document.getElementById('hari').value);
+
+            if (isNaN(belanja) || isNaN(cangkir) || isNaN(hari)) {
+                alert("Harap isi semua kolom data!");
+                return;
+            }
+
+            let segmen = "";
+            let promo = "";
+
+            if (belanja >= 900000 || cangkir >= 21) {
+                segmen = "👑 Sultan VIP / Anak Kantor";
+                promo = "Berikan Kartu Akses VIP, Prioritas Bebas Antre, dan Diskon Paket Traktir Kantor 15%.";
+            } else if (belanja >= 300000 || cangkir >= 6) {
+                segmen = "🍰 Anak Nongkrong";
+                promo = "Tawarkan Promo Bundling Paket 'Kopi + Pastry' Hemat untuk Dinikmati Bersama.";
+            } else {
+                segmen = "🥉 Pelanggan Hemat";
+                promo = "Berikan Kupon Voucher 'Up-size Gratis' atau Diskon Khusus di Jam-jam Sepi (Happy Hour).";
+            }
+
+            document.getElementById('resTitle').innerText = "Hasil Segmen: " + segmen;
+            document.getElementById('resPromo').innerText = promo;
+            document.getElementById('resultBox').style.display = "block";
+        }
+    </script>
+</body>
+</html>
